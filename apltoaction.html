@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>APL to GGL Converter</title>
+</head>
+<body style="font-family: Arial, sans-serif; margin: 40px; background-color: #f4f4f4;">
+
+<h1 style="color: #333;">APL to GGL Converter</h1>
+
+<textarea id="aplCode" rows="40" cols="70" style="width: 45%; height: 400px; margin-right: 2%; padding: 10px; box-sizing: border-box; border: 2px solid #ccc; border-radius: 4px;" placeholder="Paste your APL code here" oninput="convertCode()"></textarea>
+
+<textarea id="gglCode" rows="40" cols="70" style="width: 45%; height: 400px; margin-left: 2%; padding: 10px; box-sizing: border-box; border: 2px solid #ccc; border-radius: 4px;" readonly></textarea>
+
+<script>
+function convertCode() {
+    const aplCode = document.getElementById("aplCode").value;
+    const aplLines = aplCode.split("\n");
+    let gglLines = [];
+
+    for (const aplLine of aplLines) {
+        let gglLine = apl_to_ggl(aplLine);
+        if (gglLine) {
+            gglLines.push(gglLine);
+        }
+    }
+    
+    document.getElementById("gglCode").value = gglLines.join("\n");
+}
+
+function apl_to_ggl(aplLine) {
+    if (aplLine.includes("#") || !aplLine.trim()) {
+        return null;
+    }
+    
+    let action, conditions;
+    [action, ...conditions] = aplLine.split(",");
+    action = action.trim();
+    conditions = conditions.map(c => c.trim());
+
+    let cleanedAction = action.replace(/[^a-zA-Z]/g, '');
+
+    let gglAction = `A.${cleanedAction}:IsReady(unitID)`;
+
+    let gglConditions = conditions.map(cond => {
+        let isNot = cond.includes('!');
+        if (cond.includes("buff.")) {
+            let buffName = cond.replace('!', '').split(".")[1];
+            let stackCheck = cond.match(/stack>=([0-9]+)/);
+            if (stackCheck) {
+                return `Unit("player"):HasBuffsStacks(A.${buffName}.ID) >= ${stackCheck[1]}`;
+            }
+            return `${isNot ? 'not ' : ''}Unit("player"):HasBuffs(A.${buffName}.ID) > 0`;
+        }
+        return cond;
+    }).join(" and ");
+
+    if (gglConditions) {
+        return `if ${gglAction} and ${gglConditions} then return A.${cleanedAction}:Show(icon) end`;
+    } else {
+        return `if ${gglAction} then return A.${cleanedAction}:Show(icon) end`;
+    }
+}
+</script>
+
+</body>
+</html>
